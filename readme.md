@@ -1,4 +1,4 @@
-# BERT-based Mention Score Network for Gendered Pronoun Resolutio
+# MSnet: A BERT-based Mention Score Network for Gendered Pronoun Resolution
 
 ### training details
 feature-based approach with meanpooling: https://www.kaggle.com/ziliwang/feature-based-approach-with-meanpooling
