@@ -6,7 +6,7 @@
 
 
 
-## training details
+## Training Details
 
 feature-based approach with meanpooling: https://www.kaggle.com/ziliwang/feature-based-approach-with-meanpooling
 
@@ -22,7 +22,7 @@ fine-turning with attention: https://www.kaggle.com/ziliwang/fine-tuning-with-at
 
 
 
-performance change:
+performance changes:
 
 ![performance change before and after the update](readme.assets/1558512763511.png)
 
