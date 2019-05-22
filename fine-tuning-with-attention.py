@@ -36,7 +36,7 @@ else:
     BERT_NAME = 'cased_L-24_H-1024_A-16'
     BERT_SIZE = 1024
     BERT_UNCASE = False
-    
+
 ############# other para
 if TUNING == 'mature':
     S1_EPOCH = 30
@@ -75,7 +75,7 @@ from pytorch_pretrained_bert import BertTokenizer, BertModel, BertForMaskedLM, W
 print('load data')
 #os.system('ls -lah')
 torch.manual_seed(SEED)
-np.random.seed(SEED) 
+np.random.seed(SEED)
 bert = BertModel.from_pretrained(BERT_NAME).cuda()
 
 gap_dev = pd.read_csv('gap-development.tsv', delimiter='\t')
@@ -88,17 +88,17 @@ all_data = all_data.reset_index(drop=True)
 def bert_tokenize(text, p, a, b, p_offset, a_offset, b_offset):
     idxs = {}
     tokens = []
-    
+
     a_span = [a_offset, a_offset+len(a), 'a']
     b_span = [b_offset, b_offset+len(b), 'b']
     p_span = [p_offset, p_offset+len(p), 'p']
-    
+
     spans = [a_span, b_span, p_span]
     spans = sorted(spans, key=lambda x: x[0])
-    
+
     last_offset = 0
     idx = -1
-    
+
     def token_part(string):
         _idxs = []
         nonlocal idx
@@ -107,15 +107,15 @@ def bert_tokenize(text, p, a, b, p_offset, a_offset, b_offset):
             tokens.append(w)
             _idxs.append(idx)
         return _idxs
-    
-    
+
+
     for span in spans:
         token_part(text[last_offset:span[0]])
         idxs[span[2]] = token_part(text[span[0]:span[1]])
         last_offset = span[1]
     token_part(text[last_offset:])
     return tokens, idxs
-    
+
 tokenizer = BertTokenizer.from_pretrained(BERT_NAME + '/vocab.txt', do_lower_case= BERT_UNCASE)
 wp_tokenizer = WordpieceTokenizer(tokenizer.vocab)
 
@@ -135,13 +135,13 @@ all_data.at[209, 'b_idx'] = [_ - 60 for _ in all_data.loc[209, 'b_idx']]
 all_data.at[209, 'p_idx'] = [_ - 60 for _ in all_data.loc[209, 'p_idx']]
 
 class GPTData(Dataset):
-    
+
     def __init__(self, dataframe):
         self.data = dataframe
-    
+
     def __len__(self):
         return self.data.shape[0]
-    
+
     def __getitem__(self, idx):
         _ = self.data.loc[idx]
         sample = {'id': _['ID'],
@@ -152,18 +152,18 @@ class GPTData(Dataset):
                   'coref': torch.LongTensor([0 if _['A-coref'] else 1 if _['B-coref'] else 2])
                  }
         return sample
-        
+
 class SortLenSampler(Sampler):
-    
+
     def __init__(self, data_source, key):
         self.sorted_idx = sorted(range(len(data_source)), key=lambda x: len(data_source[x][key]))
-    
+
     def __iter__(self):
         return iter(self.sorted_idx)
-    
+
     def __len__(self):
         return len(self.sorted_idx)
-        
+
 
 def gpt_collate_func(x):
     _ = [[], [], [], [], [], []]
@@ -204,7 +204,7 @@ def get_span_tensor(bert_t, index, last_layer=L, pad_id=-1):
             break
         span_tensor.append(bert_t[-last_layer:, i, :])
     return torch.stack(span_tensor)
-    
+
 _ = GPTData(all_data)
 gpt_iter = DataLoader(_, batch_size=5, sampler=SortLenSampler(_, 'encode'), collate_fn=gpt_collate_func)
 
@@ -219,7 +219,7 @@ for (x, p, a, b, y, id_) in gpt_iter:
         cache_bert[v] = {'a': get_span_tensor(_[:,i,:],a[i]),
                          'b': get_span_tensor(_[:,i,:],b[i]),
                          'p': meanpooling(_[:,i,:], p[i])}
-print('cache bert features finished.')  
+print('cache bert features finished.')
 
 ######## model define
 def get_mask(t, shape=(8,123), padding_value=0):
@@ -249,7 +249,7 @@ def masked_softmax(vec, mask, dim=1, epsilon=1e-15):
 
 
 class AttentionSimilarityLayer(nn.Module):
-    
+
     def __init__(self, hidden_dim, dropout=0.3):
         super(AttentionSimilarityLayer, self).__init__()
         self.ffnn = nn.Linear(hidden_dim*5, S_DIM)
@@ -272,10 +272,10 @@ class AttentionSimilarityLayer(nn.Module):
         y = self.ffnn(self.dropout(_input))
 
         return y
-    
+
 
 class MSnet(nn.Module):
-    
+
     def __init__(self, hidden_dim, dropout=0.5, hidden_layer=4):
         super(MSnet, self).__init__()
         self.sim_layers = nn.ModuleList([AttentionSimilarityLayer(hidden_dim, dropout=dropout) for i in range(hidden_layer)])
@@ -283,7 +283,7 @@ class MSnet(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.mention_score = nn.Linear(S_DIM*hidden_layer+2, 3)
         self.dist_ecoding = nn.Linear(1,1)
-        
+
     def forward(self, a, b, p, ap, bp):
         y = []
         a_mask = get_mask(a, shape=a.shape[2:])
@@ -308,7 +308,7 @@ def freeze_collate_func(x):
         _[3].append(i['coref'])
         _[4].append((i['a_idx'][0] - i['p_idx'][0]).type(torch.FloatTensor))
         _[5].append((i['b_idx'][0] - i['p_idx'][0]).type(torch.FloatTensor))
-    return [pad_sequence(v, batch_first=True) if i < 2 else torch.stack(v) for i, v in enumerate(_)] 
+    return [pad_sequence(v, batch_first=True) if i < 2 else torch.stack(v) for i, v in enumerate(_)]
 
 def score(pred, y):
     t_float = torch.FloatTensor
@@ -440,15 +440,17 @@ train = GPTData(train_df)
 
 test_iter = DataLoader(test, batch_size=10, collate_fn=gpt_collate_func)
 
-def tune_paras(bert_model, tuning_last=12):
+def tune_paras(bert_model, tuning_last=12, bert_h=24):
     for name, w in bert_model.named_parameters():
         _ = re.search('encoder\.layer\.(\d+)\.', name)
-        if _ and int(_.group(1)) < 23 - tuning_last:
+        if _ and int(_.group(1)) in range(bert_h - tuning_last, bert_h):
+            w.requires_grad = True
+        else:
             w.requires_grad = False
-            
-            
+
+
 torch.manual_seed(SEED)
-np.random.seed(SEED) 
+np.random.seed(SEED)
 tune_paras(bert, L_TUNING)
 s1_lr = 4e-4
 s2_lr = 5e-6
@@ -495,12 +497,12 @@ for train_idx, val_idx in kfold.split(list(range(len(train)))):
     s, y = stage2_training(s2_epoch, bert, bert_opt, msnet, msnet_opt, lossfunc, train_iter, val_iter, test_iter, early_stop=s2_early_stop)
     scores.append(s)
     test_preds.append(y)
-    
+
     k_th += 1
     print('best score: {:.6f}'.format(s))
     print('------------'*3)
 
-    
+
 print('Score: {:.6f} {:.6f}'.format(np.mean(scores), np.std(scores)))
 probs = np.mean(test_preds, axis=0).reshape((-1, 3))
 true = []
@@ -516,4 +518,3 @@ sub['A'] = probs[:,0]
 sub['B'] = probs[:,1]
 sub['NEITHER'] = probs[:,2]
 sub.to_csv("submission.csv", index=False)
-
