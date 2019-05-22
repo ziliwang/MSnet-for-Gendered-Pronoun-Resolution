@@ -2,7 +2,7 @@
 
 ## Network Architecture
 
-![1558512911474](https://github.com/ziliwang/MSnet-for-Gendered-Pronoun-Resolution/blob/master/readme.assets/1558512911474.png)
+![1558512911474](readme.assets/1558512911474.png)
 
 
 
@@ -24,7 +24,7 @@ fine-turning with attention: https://www.kaggle.com/ziliwang/fine-tuning-with-at
 
 performance change:
 
-![1558512763511](https://github.com/ziliwang/MSnet-for-Gendered-Pronoun-Resolution/blob/master/readme.assets/1558512763511.png)
+![performance change before and after the update](readme.assets/1558512763511.png)
 
 
 
